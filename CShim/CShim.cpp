@@ -60,4 +60,5 @@ void Error(const TCHAR* const format, ...)
     _vsntprintf_s(buffer, sizeof(buffer) / sizeof(TCHAR), format, args);
     va_end(args);
     _fputts(buffer, stderr);
+    _fputts(TEXT("\n"), stderr);
 }

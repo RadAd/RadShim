@@ -7,3 +7,12 @@
 
 void Error(const TCHAR* const format, ...);
 DWORD Launch(const HINSTANCE hInstance, const LPCTSTR lpCmdLine);
+
+struct Win32Error
+{
+    DWORD code;
+    LPCTSTR msg;
+};
+void ReportError(const Win32Error& e);
+#define CHECK_LE(x) if (!(x)) throw Win32Error({ GetLastError(), _T(#x) });
+
