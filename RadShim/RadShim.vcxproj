@@ -58,11 +58,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="RadShim.cpp" />
+    <ClCompile Include="Resources.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ShimLib\ShimLib.vcxproj">
       <Project>{2d6ba560-31d4-4b37-998c-4fa0c3e1a843}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Resources.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

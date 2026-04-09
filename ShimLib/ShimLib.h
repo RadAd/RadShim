@@ -14,5 +14,6 @@ struct Win32Error
     LPCTSTR msg;
 };
 void ReportError(const Win32Error& e);
-#define CHECK_LE(x) if (!(x)) throw Win32Error({ GetLastError(), _T(#x) });
+#define CHECK_RET(x, r) if (!(x)) return (r)
+#define CHECK_LE(x) if (!(x)) throw Win32Error({ GetLastError(), TEXT(#x) })
 

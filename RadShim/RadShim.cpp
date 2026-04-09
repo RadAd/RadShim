@@ -10,72 +10,31 @@
 #include <vector>
 
 #include "..\ShimLib\ShimLib.h"
+#include "Resources.h"
 
-#define STRINGTABLE_SIZE 16
-
-struct StringTable
+void CopyResources(LPCTSTR file, LPCTSTR target)
 {
-    std::wstring item[STRINGTABLE_SIZE];
-};
-
-StringTable LoadStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage)
-{
-    _ASSERTE(!PathIsRelative(file));
+    _ASSERTE(!PathIsRelative(target));
     HMODULE hModule;
-    CHECK_LE(hModule = LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE));
-    HRSRC hResInfo;
-    CHECK_LE(hResInfo = FindResourceEx(hModule, RT_STRING, lpName, wLanguage));
-    HGLOBAL hRes;
-    CHECK_LE(hRes = LoadResource(hModule, hResInfo));
-    DWORD sz = SizeofResource(hModule, hResInfo);
-    StringTable stringtable;
-    {
-        BYTE* data = (BYTE*) LockResource(hRes);
-        for (UINT i = 0; i < STRINGTABLE_SIZE; ++i)
-        {
-            WORD nLength = *((WORD*) data);
-            data += sizeof(nLength);
-            if (nLength > 0)
-            {
-                LPCWSTR str = (LPCWSTR) data;
-                data += nLength * sizeof(WCHAR);
-                stringtable.item[i] = std::wstring(str, nLength);
-            }
-        }
-        _ASSERTE((DWORD) (data - (BYTE*) hRes) == sz);
-    }
-    FreeLibrary(hModule);
-    return stringtable;
-}
+    CHECK_LE(hModule = LoadLibraryEx(target, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE));
+    LPCTSTR group_icon_name = FindFirstResourceName(hModule, RT_GROUP_ICON);
+    LPCTSTR version_name = FindFirstResourceName(hModule, RT_VERSION);
 
-void pack(std::vector<BYTE>& data, WORD value)
-{
-    data.push_back((BYTE) (value & 0xFF));
-    data.push_back((BYTE) ((value >> 8) & 0xFF));
-}
+    std::vector<WORD> icon_data;
+    if (group_icon_name)
+        icon_data = GetIconResourceIDs(hModule, group_icon_name);
 
-void pack(std::vector<BYTE>& data, LPCWSTR str, WORD nLength)
-{
-    for (UINT i = 0; i < nLength; ++i)
-    {
-        WORD ch = str[i];
-        pack(data, ch);
-    }
-}
-
-void SaveStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage, const StringTable& stringtable)
-{
-    std::vector<BYTE> data;
-    for (UINT i = 0; i < STRINGTABLE_SIZE; ++i)
-    {
-        WORD nLength = (WORD) stringtable.item[i].length();
-        pack(data, nLength);
-        pack(data, stringtable.item[i].data(), nLength);
-    }
     HANDLE hUpdate;
     CHECK_LE(hUpdate = BeginUpdateResource(file, FALSE));
-    CHECK_LE(UpdateResource(hUpdate, RT_STRING, lpName, wLanguage, data.data(), (DWORD) data.size() * sizeof(BYTE)));
+    if (group_icon_name)
+        CopyResource(hModule, RT_GROUP_ICON, group_icon_name, hUpdate);
+    for (WORD id : icon_data)
+        CopyResource(hModule, RT_ICON, MAKEINTRESOURCE(id), hUpdate);
+    if (version_name)
+        CopyResource(hModule, RT_VERSION, version_name, hUpdate);
     CHECK_LE(EndUpdateResource(hUpdate, FALSE));
+
+    FreeLibrary(hModule);
 }
 
 int _tmain(const int argc, const TCHAR* const argv[])
@@ -87,12 +46,12 @@ try
         LPCTSTR target = argv[2];
         if (PathIsRelative(target))
         {
-            _tprintf(_T("Target cannot be relative: %s\n"), target);
+            Error(_T("Target cannot be relative: %s"), target);
             return EXIT_FAILURE;
         }
         if (!PathFileExists(target))
         {
-            _tprintf(_T("Target file does not exist: %s\n"), target);
+            Error(_T("Target file does not exist: %s"), target);
             return EXIT_FAILURE;
         }
 
@@ -115,6 +74,8 @@ try
         StringTable stringtable = LoadStringTable(file, lpName, wLanguage);
         stringtable.item[IDS_COMMAND % STRINGTABLE_SIZE] = target;
         SaveStringTable(file, lpName, wLanguage, stringtable);
+
+        CopyResources(file, target);
 
         _tprintf(_T("RadShim: %s ==> %s\n"), file, target);
     }
