@@ -2,7 +2,8 @@
 // Microsoft Visual C++ generated include file.
 // Used by CShim.rc
 //
-#define IDS_COMMAND                     101
+#define IDS_VERSION                     101
+#define IDS_TARGET                      102
 
 // Next default values for new objects
 // 

@@ -69,15 +69,31 @@ try
         lstrcpy(shimname, isConsole ? TEXT("CShim.exe") : TEXT("WShim.exe"));
         CHECK_LE(CopyFile(shim, file, FALSE));
 
-        LPCWSTR lpName = MAKEINTRESOURCE(IDS_COMMAND / STRINGTABLE_SIZE + 1);
+        LPCWSTR lpName = MAKEINTRESOURCE(IDS_TARGET / STRINGTABLE_SIZE + 1);
         const WORD wLanguage = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
         StringTable stringtable = LoadStringTable(file, lpName, wLanguage);
-        stringtable.item[IDS_COMMAND % STRINGTABLE_SIZE] = target;
+        stringtable.item[IDS_TARGET % STRINGTABLE_SIZE] = target;
         SaveStringTable(file, lpName, wLanguage, stringtable);
 
         CopyResources(file, target);
 
         _tprintf(_T("RadShim: %s ==> %s\n"), file, target);
+    }
+    else if (lstrcmpi(command, _T("details")) == 0)
+    {
+        LPCTSTR shim = argv[2];
+        HMODULE hModule;
+        CHECK_LE(hModule = LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE));
+
+        TCHAR version[256];
+        LoadString(hModule, IDS_VERSION, version, ARRAYSIZE(version));
+        TCHAR target[MAX_PATH];
+        LoadString(hModule, IDS_TARGET, target, ARRAYSIZE(target));
+
+        _tprintf(_T("Version: %s\n"), version);
+        _tprintf(_T("Target: %s\n"), target);
+
+        FreeLibrary(hModule);
     }
     else
     {

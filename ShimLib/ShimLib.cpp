@@ -34,7 +34,7 @@ DWORD Launch(const HINSTANCE hInstance, const LPCTSTR lpCmdLine)
 try
 {
     TCHAR command[MAX_PATH] = _T("");
-    CHECK_LE(LoadString(hInstance, IDS_COMMAND, command, ARRAYSIZE(command)));
+    CHECK_LE(LoadString(hInstance, IDS_TARGET, command, ARRAYSIZE(command)));
 
     TCHAR fullcmd[MAX_PATH * 5] = _T("");
 #if 0
