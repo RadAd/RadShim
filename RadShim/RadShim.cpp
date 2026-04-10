@@ -6,7 +6,6 @@
 
 #include <cstdlib>
 #include <cstdio>
-#include <string>
 #include <vector>
 
 #include "..\ShimLib\ShimLib.h"
@@ -15,26 +14,24 @@
 void CopyResources(LPCTSTR file, LPCTSTR target)
 {
     _ASSERTE(!PathIsRelative(target));
-    HMODULE hModule;
-    CHECK_LE(hModule = LoadLibraryEx(target, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE));
-    LPCTSTR group_icon_name = FindFirstResourceName(hModule, RT_GROUP_ICON);
-    LPCTSTR version_name = FindFirstResourceName(hModule, RT_VERSION);
+    UniqueModule hModule(InitUniqueModule());
+    CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(target, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
+    LPCTSTR group_icon_name = FindFirstResourceName(hModule.get(), RT_GROUP_ICON);
+    LPCTSTR version_name = FindFirstResourceName(hModule.get(), RT_VERSION);
 
     std::vector<WORD> icon_data;
     if (group_icon_name)
-        icon_data = GetIconResourceIDs(hModule, group_icon_name);
+        icon_data = GetIconResourceIDs(hModule.get(), group_icon_name);
 
-    HANDLE hUpdate;
-    CHECK_LE(hUpdate = BeginUpdateResource(file, FALSE));
+    UniqueUpdateResource hUpdate;
+    CHECK_LE(hUpdate = UniqueUpdateResource(BeginUpdateResource(file, FALSE)));
     if (group_icon_name)
-        CopyResource(hModule, RT_GROUP_ICON, group_icon_name, hUpdate);
+        CHECK_LE(CopyResource(hModule.get(), RT_GROUP_ICON, group_icon_name, hUpdate.get()));
     for (WORD id : icon_data)
-        CopyResource(hModule, RT_ICON, MAKEINTRESOURCE(id), hUpdate);
+        CHECK_LE(CopyResource(hModule.get(), RT_ICON, MAKEINTRESOURCE(id), hUpdate.get()));
     if (version_name)
-        CopyResource(hModule, RT_VERSION, version_name, hUpdate);
-    CHECK_LE(EndUpdateResource(hUpdate, FALSE));
-
-    FreeLibrary(hModule);
+        CHECK_LE(CopyResource(hModule.get(), RT_VERSION, version_name, hUpdate.get()));
+    hUpdate.get_deleter().discard = FALSE;
 }
 
 int _tmain(const int argc, const TCHAR* const argv[])
@@ -82,18 +79,16 @@ try
     else if (lstrcmpi(command, _T("details")) == 0)
     {
         LPCTSTR shim = argv[2];
-        HMODULE hModule;
-        CHECK_LE(hModule = LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE));
+        UniqueModule hModule(InitUniqueModule());
+        CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
 
         TCHAR version[256];
-        LoadString(hModule, IDS_VERSION, version, ARRAYSIZE(version));
+        LoadString(hModule.get(), IDS_VERSION, version, ARRAYSIZE(version));
         TCHAR target[MAX_PATH];
-        LoadString(hModule, IDS_TARGET, target, ARRAYSIZE(target));
+        LoadString(hModule.get(), IDS_TARGET, target, ARRAYSIZE(target));
 
         _tprintf(_T("Version: %s\n"), version);
         _tprintf(_T("Target: %s\n"), target);
-
-        FreeLibrary(hModule);
     }
     else
     {

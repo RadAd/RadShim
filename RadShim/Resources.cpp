@@ -2,21 +2,28 @@
 #include <Windows.h>
 #include "Resources.h"
 
+#include <memory>
 #include <vector>
 #include <shlwapi.h>
 #include "..\ShimLib\ShimLib.h"
 
+void UpdateResourceDeleter::operator()(HANDLE hUpdate) const
+{
+    if (hUpdate)
+        CHECK_LE(EndUpdateResource(hUpdate, discard));
+}
+
 StringTable LoadStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage)
 {
     _ASSERTE(!PathIsRelative(file));
-    HMODULE hModule;
-    CHECK_LE(hModule = LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE));
+    UniqueModule hModule(InitUniqueModule());
+    CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
     HRSRC hResInfo;
 
-    CHECK_LE(hResInfo = FindResourceEx(hModule, RT_STRING, lpName, wLanguage));
+    CHECK_LE(hResInfo = FindResourceEx(hModule.get(), RT_STRING, lpName, wLanguage));
     HGLOBAL hRes;
-    CHECK_LE(hRes = LoadResource(hModule, hResInfo));
-    DWORD sz = SizeofResource(hModule, hResInfo);
+    CHECK_LE(hRes = LoadResource(hModule.get(), hResInfo));
+    DWORD sz = SizeofResource(hModule.get(), hResInfo);
     StringTable stringtable;
     {
         BYTE* data = (BYTE*) LockResource(hRes);
@@ -33,7 +40,6 @@ StringTable LoadStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage)
         }
         _ASSERTE((DWORD) (data - (BYTE*) hRes) == sz);
     }
-    FreeLibrary(hModule);
     return stringtable;
 }
 
@@ -61,10 +67,10 @@ void SaveStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage, const StringT
         pack(data, nLength);
         pack(data, stringtable.item[i].data(), nLength);
     }
-    HANDLE hUpdate;
-    CHECK_LE(hUpdate = BeginUpdateResource(file, FALSE));
-    CHECK_LE(UpdateResource(hUpdate, RT_STRING, lpName, wLanguage, data.data(), (DWORD) data.size() * sizeof(BYTE)));
-    CHECK_LE(EndUpdateResource(hUpdate, FALSE));
+    UniqueUpdateResource hUpdate;
+    CHECK_LE(hUpdate = UniqueUpdateResource(BeginUpdateResource(file, FALSE)));
+    CHECK_LE(UpdateResource(hUpdate.get(), RT_STRING, lpName, wLanguage, data.data(), (DWORD) data.size() * sizeof(BYTE)));
+    hUpdate.get_deleter().discard = FALSE;
 }
 
 // https://docs.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)
@@ -167,22 +173,10 @@ static BOOL CALLBACK EnumLangsCopyResourceFunc(
     DWORD sz = SizeofResource(hModule, hResInfo);
     LPVOID pData = LockResource(hRes);
 
-    if (!UpdateResource(hUpdate, lpType, lpName, wLang, pData, sz))
-    {
-        if (!IS_INTRESOURCE(lpType) && !IS_INTRESOURCE(lpName))
-            Error(TEXT("Failed to update resource: type=%s, name=%s, lang=%u"), lpType, lpName, wLang);
-        else if (!IS_INTRESOURCE(lpType))
-            Error(TEXT("Failed to update resource: type=%s, name=%u, lang=%u"), lpType, (USHORT) (UINT_PTR) lpName, wLang);
-        else if (!IS_INTRESOURCE(lpName))
-            Error(TEXT("Failed to update resource: type=%u, name=%s, lang=%u"), (USHORT) (UINT_PTR) lpType, lpName, wLang);
-        else
-            Error(TEXT("Failed to update resource: type=%u, name=%u, lang=%u"), (USHORT) (UINT_PTR) lpType, (USHORT) (UINT_PTR) lpName, wLang);
-    }
-
-    return TRUE;
+    return UpdateResource(hUpdate, lpType, lpName, wLang, pData, sz);
 }
 
-void CopyResource(HMODULE hModule, LPCWSTR lpType, LPCWSTR lpName, HANDLE hUpdate)
+BOOL CopyResource(HMODULE hModule, LPCWSTR lpType, LPCWSTR lpName, HANDLE hUpdate)
 {
-    EnumResourceLanguages(hModule, lpType, lpName, EnumLangsCopyResourceFunc, (LPARAM) hUpdate);
+    return EnumResourceLanguages(hModule, lpType, lpName, EnumLangsCopyResourceFunc, (LPARAM) hUpdate);
 }
