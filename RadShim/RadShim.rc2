@@ -1,0 +1,13 @@
+#pragma once
+
+#ifndef APSTUDIO_INVOKED
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RCDATA
+//
+
+IDR_CSHIM_EXE           RCDATA                  PATH_CSHIM_EXE
+IDR_WSHIM_EXE           RCDATA                  PATH_WSHIM_EXE
+
+#endif

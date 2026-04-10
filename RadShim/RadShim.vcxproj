@@ -36,36 +36,31 @@
     <Import Project="..\RadVSProps\Configuration.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Link>
-      <AdditionalDependencies>Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Link>
-      <AdditionalDependencies>Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Link>
-      <AdditionalDependencies>Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>PATH_CSHIM_EXE="$(OutputPath)CShim.exe";PATH_WSHIM_EXE="$(OutputPath)WShim.exe";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="RadShim.cpp" />
     <ClCompile Include="Resources.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CShim\CShim.vcxproj">
+      <Project>{e816d035-77ed-94d1-39b8-a546677f9387}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\ShimLib\ShimLib.vcxproj">
       <Project>{2d6ba560-31d4-4b37-998c-4fa0c3e1a843}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\WShim\WShim.vcxproj">
+      <Project>{17c6579a-a0f2-1e18-8659-2a70723d0688}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="RadShim.rc2" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Resources.h" />
   </ItemGroup>
