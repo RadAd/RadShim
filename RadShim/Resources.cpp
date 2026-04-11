@@ -8,6 +8,11 @@
 #include <shlwapi.h>
 #include "..\ShimLib\ShimLib.h"
 
+inline HANDLE FixHandle(HANDLE h)
+{
+    return (h == INVALID_HANDLE_VALUE) ? NULL : h;
+}
+
 void UpdateResourceDeleter::operator()(HANDLE hUpdate) const
 {
     if (hUpdate)
@@ -82,9 +87,20 @@ void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR ou
     CHECK_LE(hRes = LoadResource(hModule, hResInfo));
     const DWORD sz = SizeofResource(hModule, hResInfo);
     const char* data = (const char*) LockResource(hRes);
-    std::ofstream f(output, std::ios::out | std::ios::binary);
+#if 0
+    std::ofstream f;
+    f.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+    f.open(output, std::ios::out | std::ios::binary);
     f.write(data, sz);
     f.close();
+#else
+    HANDLE hFile;
+    CHECK_LE(hFile = FixHandle(CreateFile(output, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)));
+    DWORD bytesWritten = 0;
+    CHECK_LE(WriteFile(hFile, data, sz, &bytesWritten, NULL));
+    _ASSERTE(bytesWritten == sz);
+    CHECK_LE(CloseHandle(hFile));
+#endif
 }
 
 // https://docs.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)
