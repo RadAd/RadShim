@@ -10,6 +10,7 @@
 
 #include "..\ShimLib\ShimLib.h"
 #include "Resources.h"
+#include "resource.h"
 
 void CopyResources(LPCTSTR file, LPCTSTR target)
 {
@@ -58,13 +59,17 @@ try
 
         LPCTSTR filename = PathFindFileName(target);
         TCHAR file[MAX_PATH];
-        GetFullPathName(filename, ARRAYSIZE(file), file, nullptr);
+        CHECK_LE(GetFullPathName(filename, ARRAYSIZE(file), file, nullptr));
 
+#if 0
         TCHAR shim[MAX_PATH];
         GetModuleFileName(NULL, shim, ARRAYSIZE(shim));
         LPTSTR shimname = PathFindFileName(shim);
         lstrcpy(shimname, isConsole ? TEXT("CShim.exe") : TEXT("WShim.exe"));
         CHECK_LE(CopyFile(shim, file, FALSE));
+#else
+        ExtractResource(NULL, MAKEINTRESOURCE(isConsole ? IDR_CSHIM_EXE : IDR_WSHIM_EXE), RT_RCDATA, file);
+#endif
 
         LPCWSTR lpName = MAKEINTRESOURCE(IDS_TARGET / STRINGTABLE_SIZE + 1);
         const WORD wLanguage = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
@@ -78,14 +83,17 @@ try
     }
     else if (lstrcmpi(command, _T("details")) == 0)
     {
-        LPCTSTR shim = argv[2];
+        LPCTSTR shimname = argv[2];
+        TCHAR shim[MAX_PATH];
+        CHECK_LE(GetFullPathName(shimname, ARRAYSIZE(shim), shim, nullptr));
+
         UniqueModule hModule(InitUniqueModule());
         CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
 
         TCHAR version[256];
-        LoadString(hModule.get(), IDS_VERSION, version, ARRAYSIZE(version));
+        CHECK_LE(LoadString(hModule.get(), IDS_VERSION, version, ARRAYSIZE(version)));
         TCHAR target[MAX_PATH];
-        LoadString(hModule.get(), IDS_TARGET, target, ARRAYSIZE(target));
+        CHECK_LE(LoadString(hModule.get(), IDS_TARGET, target, ARRAYSIZE(target)));
 
         _tprintf(_T("Version: %s\n"), version);
         _tprintf(_T("Target: %s\n"), target);

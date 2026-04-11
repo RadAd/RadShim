@@ -15,6 +15,16 @@ struct Win32Error
     LPCTSTR msg;
 };
 void ReportError(const Win32Error& e);
+
+template <class T>
+T Check(T value, const TCHAR* const expression)
+{
+    if (!value)
+        throw Win32Error({ GetLastError(), expression });
+    return value;
+}
+
 #define CHECK_RET(x, r) if (!(x)) return (r)
 #define CHECK_LE(x) if (!(x)) throw Win32Error({ GetLastError(), TEXT(#x) })
+#define CHECK_LE_F(x) Check(x, TEXT(#x))
 

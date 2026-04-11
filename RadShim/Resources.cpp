@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include "Resources.h"
 
+#include <fstream>
 #include <memory>
 #include <vector>
 #include <shlwapi.h>
@@ -23,7 +24,7 @@ StringTable LoadStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage)
     CHECK_LE(hResInfo = FindResourceEx(hModule.get(), RT_STRING, lpName, wLanguage));
     HGLOBAL hRes;
     CHECK_LE(hRes = LoadResource(hModule.get(), hResInfo));
-    DWORD sz = SizeofResource(hModule.get(), hResInfo);
+    const DWORD sz = SizeofResource(hModule.get(), hResInfo);
     StringTable stringtable;
     {
         BYTE* data = (BYTE*) LockResource(hRes);
@@ -71,6 +72,19 @@ void SaveStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage, const StringT
     CHECK_LE(hUpdate = UniqueUpdateResource(BeginUpdateResource(file, FALSE)));
     CHECK_LE(UpdateResource(hUpdate.get(), RT_STRING, lpName, wLanguage, data.data(), (DWORD) data.size() * sizeof(BYTE)));
     hUpdate.get_deleter().discard = FALSE;
+}
+
+void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR output)
+{
+    HRSRC hResInfo;
+    CHECK_LE(hResInfo = FindResource(hModule, lpName, lpType));
+    HGLOBAL hRes;
+    CHECK_LE(hRes = LoadResource(hModule, hResInfo));
+    const DWORD sz = SizeofResource(hModule, hResInfo);
+    const char* data = (const char*) LockResource(hRes);
+    std::ofstream f(output, std::ios::out | std::ios::binary);
+    f.write(data, sz);
+    f.close();
 }
 
 // https://docs.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)
@@ -170,7 +184,7 @@ static BOOL CALLBACK EnumLangsCopyResourceFunc(
     HGLOBAL hRes;
     CHECK_RET(hRes = LoadResource(hModule, hResInfo), TRUE);
 
-    DWORD sz = SizeofResource(hModule, hResInfo);
+    const DWORD sz = SizeofResource(hModule, hResInfo);
     LPVOID pData = LockResource(hRes);
 
     return UpdateResource(hUpdate, lpType, lpName, wLang, pData, sz);

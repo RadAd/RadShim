@@ -31,6 +31,8 @@ struct StringTable
 StringTable LoadStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage);
 void SaveStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage, const StringTable& stringtable);
 
+void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR output);
+
 std::vector<WORD> GetIconResourceIDs(HMODULE hModule, LPCWSTR lpName);
 
 LPCTSTR FindFirstResourceName(HMODULE hModule, LPCWSTR lpType);
