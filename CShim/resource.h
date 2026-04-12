@@ -3,7 +3,8 @@
 // Used by CShim.rc
 //
 #define IDS_VERSION                     101
-#define IDS_TARGET                      102
+#define IDS_SHIM                        102
+#define IDS_TARGET                      103
 
 // Next default values for new objects
 // 

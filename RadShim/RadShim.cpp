@@ -90,6 +90,14 @@ try
         UniqueModule hModule(InitUniqueModule());
         CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
 
+        // TODO Verify it is a shim file
+        TCHAR verify[256];
+        if (!LoadString(hModule.get(), IDS_SHIM, verify, ARRAYSIZE(verify)) || lstrcmpi(verify, _T("RadShim")) != 0)
+        {
+            Error(_T("Not a valid RadShim file: %s"), shim);
+            return EXIT_FAILURE;
+        }
+
         TCHAR version[256];
         CHECK_LE(LoadString(hModule.get(), IDS_VERSION, version, ARRAYSIZE(version)));
         TCHAR target[MAX_PATH];
@@ -97,11 +105,17 @@ try
 
         _tprintf(_T("Version: %s\n"), version);
         _tprintf(_T("Target: %s\n"), target);
+
+        if (!PathFileExists(target))
+        {
+            Error(_T("Target file does not exist: %s"), target);
+            return EXIT_FAILURE;
+        }
     }
     else
     {
         _tprintf(_T("RadShim\n"));
-        _tprintf(_T("Unknown command: %s\n"), command);
+        Error(_T("Unknown command: %s"), command);
         return EXIT_FAILURE;
     }
 

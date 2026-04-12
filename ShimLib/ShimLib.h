@@ -4,7 +4,8 @@
 #include <Windows.h>
 
 #define IDS_VERSION                     101
-#define IDS_TARGET                      102
+#define IDS_SHIM                        102
+#define IDS_TARGET                      103
 
 void Error(const TCHAR* const format, ...);
 DWORD Launch(const HINSTANCE hInstance, const LPCTSTR lpCmdLine);

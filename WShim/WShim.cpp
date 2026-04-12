@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <tchar.h>
 #include "..\ShimLib\ShimLib.h"
+#include "resource.h"
 
 int WINAPI _tWinMain(_In_ const HINSTANCE hInstance, _In_opt_ const HINSTANCE hPrevInstance, _In_ const LPTSTR lpCmdLine, _In_ const int nShowCmd)
 {

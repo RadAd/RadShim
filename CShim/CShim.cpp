@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <tchar.h>
 #include "..\ShimLib\ShimLib.h"
+#include "resource.h"
 
 #include <cstdio>
 
