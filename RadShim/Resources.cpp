@@ -2,7 +2,7 @@
 #include <Windows.h>
 #include "Resources.h"
 
-#include "..\ShimLib\ShimLib.h"
+#include "..\ShimLib\Error.h"
 
 void UpdateResourceDeleter::operator()(_Notnull_ HANDLE hUpdate) const
 {

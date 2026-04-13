@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <vector>
 
+#include "..\ShimLib\Error.h"
 #include "..\ShimLib\ShimLib.h"
 #include "Resources.h"
 #include "resource.h"
