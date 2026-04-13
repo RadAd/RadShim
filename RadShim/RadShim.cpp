@@ -90,7 +90,6 @@ try
         UniqueModule hModule(InitUniqueModule());
         CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
 
-        // TODO Verify it is a shim file
         TCHAR verify[256];
         if (!LoadString(hModule.get(), IDS_SHIM, verify, ARRAYSIZE(verify)) || lstrcmpi(verify, _T("RadShim")) != 0)
         {
