@@ -33,6 +33,12 @@ inline UniqueModule InitUniqueModule(HMODULE hModule = NULL)
     return UniqueModule(hModule, FreeLibrary);
 }
 
+void GetShimPath(LPTSTR path, DWORD size)
+{
+    if (GetEnvironmentVariable(TEXT("RADSHIMDIR"), path, size) == 0)
+        ExpandEnvironmentStrings(TEXT("%LOCALAPPDATA%\\RadShim"), path, size);
+}
+
 void CopyShim(LPCTSTR file, const bool isConsole)
 {
     TCHAR shim[MAX_PATH];
@@ -46,7 +52,7 @@ void ExtractShim(LPCTSTR file, const bool isConsole)
 {
     ResData resdata = GetResource(NULL, MAKEINTRESOURCE(isConsole ? IDR_CSHIM_EXE : IDR_WSHIM_EXE), RT_RCDATA);
     UniqueHandle hFile = InitUniqueHandle();
-    CHECK_LE(hFile = InitUniqueHandle(CreateFile(file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)));
+    CHECK_LE_CTX(hFile = InitUniqueHandle(CreateFile(file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)), file);
     _Analysis_assume_(hFile != NULL);
     DWORD bytesWritten = 0;
     CHECK_LE(WriteFile(hFile.get(), resdata.data, resdata.size, &bytesWritten, NULL));
@@ -105,7 +111,12 @@ try
         if (!argcleanup())
             return EXIT_FAILURE;
         if (argusage())
+        {
+            _ftprintf(stderr, TEXT("\n"));
+            _ftprintf(stderr, TEXT("If RADSHIMDIR is defined then shim is created in that directory\n"));
+            _ftprintf(stderr, TEXT("otherwise shim is created in %%LOCALAPPDATA%%\\RadShim\n"));
             return EXIT_SUCCESS;
+        }
 
         if (PathIsRelative(target))
         {
@@ -122,9 +133,14 @@ try
         CHECK_LE(exe_type = SHGetFileInfo(target, 0, nullptr, 0, SHGFI_EXETYPE));
         const bool isConsole = HIWORD(exe_type) == 0;
 
-        LPCTSTR filename = PathFindFileName(target);
         TCHAR file[MAX_PATH];
-        CHECK_LE(GetFullPathName(filename, ARRAYSIZE(file), file, nullptr));
+        GetShimPath(file, ARRAYSIZE(file));
+        if (!PathFileExists(file))
+        {
+            Error(_T("Shim directory doesn't exist: %s"), file);
+            return EXIT_FAILURE;
+        }
+        CHECK_LE(PathCombine(file, file, PathFindFileName(target)));
 
         //CopyShim(file, isConsole);
         ExtractShim(file, isConsole);
@@ -142,8 +158,21 @@ try
         if (argusage())
             return EXIT_SUCCESS;
 
+        if (_tcschr(shimname, TEXT('\\')) != nullptr)
+        {
+            Error(_T("Shim name cannot contain path separators: %s"), shimname);
+            return EXIT_FAILURE;
+        }
         TCHAR shim[MAX_PATH];
-        CHECK_LE(GetFullPathName(shimname, ARRAYSIZE(shim), shim, nullptr));
+        GetShimPath(shim, ARRAYSIZE(shim));
+        if (!PathFileExists(shim))
+        {
+            Error(_T("Shim directory doesn't exist: %s"), shim);
+            return EXIT_FAILURE;
+        }
+        CHECK_LE(PathCombine(shim, shim, shimname));
+
+        _tprintf(_T("Shim: %s\n"), shim);
 
         UniqueModule hModule(InitUniqueModule());
         CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
