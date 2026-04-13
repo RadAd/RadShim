@@ -17,7 +17,7 @@ inline UniqueModule InitUniqueModule(HMODULE hModule = NULL)
 struct UpdateResourceDeleter
 {
     using pointer = HANDLE;
-    void operator()(HANDLE hUpdate) const;
+    void operator()(_Notnull_ HANDLE hUpdate) const;
     BOOL discard = TRUE;
 };
 
@@ -28,12 +28,37 @@ struct StringTable
     std::wstring item[STRINGTABLE_SIZE];
 };
 
-StringTable LoadStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage);
-void SaveStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage, const StringTable& stringtable);
+StringTable LoadStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage);
+void SaveStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage, const StringTable& stringtable);
 
 void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR output);
 
-std::vector<WORD> GetIconResourceIDs(HMODULE hModule, LPCWSTR lpName);
+std::vector<WORD> GetIconResourceIDs(HMODULE hModule, LPCTSTR lpName);
 
-LPCTSTR FindFirstResourceName(HMODULE hModule, LPCWSTR lpType);
-BOOL CopyResource(HMODULE hModule, LPCWSTR lpType, LPCWSTR lpName, HANDLE hUpdate);
+LPCTSTR FindFirstResourceName(HMODULE hModule, LPCTSTR lpType);
+BOOL CopyResource(HMODULE hModule, LPCTSTR lpType, LPCTSTR lpName, HANDLE hUpdate);
+
+
+#include <functional>
+
+typedef std::function<BOOL CALLBACK(HMODULE, LPCTSTR, LPCTSTR)> EnumResNamesFunc;
+
+BOOL CALLBACK EnumResourceNamesHelper(HMODULE hModule, LPCTSTR lpType, LPTSTR lpName, LONG_PTR lParam);
+
+template <typename F>
+inline BOOL EnumResourceNames(HMODULE hModule, LPCTSTR lpType, F f)
+{
+    EnumResNamesFunc func(f);
+    return EnumResourceNames(hModule, lpType, EnumResourceNamesHelper, (LPARAM) &func);
+}
+
+typedef std::function<BOOL CALLBACK(HMODULE, LPCTSTR, LPCTSTR, WORD)> EnumResLangFunc;
+
+BOOL CALLBACK EnumResourceLanguagesHelper(HMODULE hModule, LPCTSTR lpType, LPCTSTR lpName, WORD wLang, LONG_PTR lParam);
+
+template <typename F>
+inline BOOL EnumResourceLanguages(HMODULE hModule, LPCTSTR lpType, LPCTSTR lpName, F f)
+{
+    EnumResLangFunc func(f);
+    return EnumResourceLanguages(hModule, lpType, lpName, EnumResourceLanguagesHelper, (LPARAM) &func);
+}

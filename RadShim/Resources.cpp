@@ -13,22 +13,22 @@ inline HANDLE FixHandle(HANDLE h)
     return (h == INVALID_HANDLE_VALUE) ? NULL : h;
 }
 
-void UpdateResourceDeleter::operator()(HANDLE hUpdate) const
+void UpdateResourceDeleter::operator()(_Notnull_ HANDLE hUpdate) const
 {
-    if (hUpdate)
-        CHECK_LE(EndUpdateResource(hUpdate, discard));
+    CHECK_LE(EndUpdateResource(hUpdate, discard));
 }
 
-StringTable LoadStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage)
+StringTable LoadStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage)
 {
     _ASSERTE(!PathIsRelative(file));
     UniqueModule hModule(InitUniqueModule());
     CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
     HRSRC hResInfo;
-
     CHECK_LE(hResInfo = FindResourceEx(hModule.get(), RT_STRING, lpName, wLanguage));
+    _Analysis_assume_(hResInfo != NULL);
     HGLOBAL hRes;
     CHECK_LE(hRes = LoadResource(hModule.get(), hResInfo));
+    _Analysis_assume_(hRes != NULL);
     const DWORD sz = SizeofResource(hModule.get(), hResInfo);
     StringTable stringtable;
     {
@@ -55,7 +55,7 @@ static void pack(std::vector<BYTE>& data, WORD value)
     data.push_back((BYTE) ((value >> 8) & 0xFF));
 }
 
-static void pack(std::vector<BYTE>& data, LPCWSTR str, WORD nLength)
+static void pack(std::vector<BYTE>& data, LPCTSTR str, WORD nLength)
 {
     for (UINT i = 0; i < nLength; ++i)
     {
@@ -64,7 +64,7 @@ static void pack(std::vector<BYTE>& data, LPCWSTR str, WORD nLength)
     }
 }
 
-void SaveStringTable(LPCTSTR file, LPCWSTR lpName, WORD wLanguage, const StringTable& stringtable)
+void SaveStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage, const StringTable& stringtable)
 {
     std::vector<BYTE> data;
     for (UINT i = 0; i < STRINGTABLE_SIZE; ++i)
@@ -83,8 +83,10 @@ void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR ou
 {
     HRSRC hResInfo;
     CHECK_LE(hResInfo = FindResource(hModule, lpName, lpType));
+    _Analysis_assume_(hResInfo != NULL);
     HGLOBAL hRes;
     CHECK_LE(hRes = LoadResource(hModule, hResInfo));
+    _Analysis_assume_(hRes != NULL);
     const DWORD sz = SizeofResource(hModule, hResInfo);
     const char* data = (const char*) LockResource(hRes);
 #if 0
@@ -94,8 +96,9 @@ void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR ou
     f.write(data, sz);
     f.close();
 #else
-    HANDLE hFile;
+    HANDLE hFile = NULL;
     CHECK_LE(hFile = FixHandle(CreateFile(output, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)));
+    _Analysis_assume_(hFile != NULL);
     DWORD bytesWritten = 0;
     CHECK_LE(WriteFile(hFile, data, sz, &bytesWritten, NULL));
     _ASSERTE(bytesWritten == sz);
@@ -136,77 +139,69 @@ typedef struct GRPIconDir
 #pragma warning( pop )
 #pragma pack( pop )
 
-static BOOL CALLBACK EnumLangsGroupIconFunc(
-    HMODULE hModule, // module handle
-    LPCTSTR lpType,  // address of resource type
-    LPCTSTR lpName,  // address of resource name
-    WORD wLang,      // resource language
-    LONG_PTR lParam)     // extra parameter, could be used for error checking
-{
-    _ASSERTE(lpType == RT_GROUP_ICON);
-    std::vector<WORD>* picon_data = (std::vector<WORD>*) lParam;
-
-    HRSRC hResInfo;
-    CHECK_RET(hResInfo = FindResourceEx(hModule, lpType, lpName, wLang), TRUE);
-    HGLOBAL hRes;
-    CHECK_RET(hRes = LoadResource(hModule, hResInfo), TRUE);
-
-    const GRPICONDIR* lpGrpIconDir = (GRPICONDIR*) LockResource(hRes);
-    for (size_t i = 0; i < lpGrpIconDir->idCount; ++i)
-    {
-        const GRPICONDIRENTRY& DirEntry = lpGrpIconDir->idEntries[i];
-        picon_data->push_back(DirEntry.nID);
-    }
-
-    return TRUE;
-}
-
-std::vector<WORD> GetIconResourceIDs(HMODULE hModule, LPCWSTR lpName)
+std::vector<WORD> GetIconResourceIDs(HMODULE hModule, LPCTSTR lpName)
 {
     std::vector<WORD> icon_data;
-    EnumResourceLanguages(hModule, RT_GROUP_ICON, lpName, EnumLangsGroupIconFunc, (LPARAM) &icon_data);
+    EnumResourceLanguages(hModule, RT_GROUP_ICON, lpName,
+        [&icon_data](HMODULE hModule, _Notnull_ LPCTSTR lpType, _Notnull_ LPCTSTR lpName, WORD wLang)->BOOL
+        {
+            _ASSERTE(lpType == RT_GROUP_ICON);
+
+            HRSRC hResInfo;
+            CHECK_RET(hResInfo = FindResourceEx(hModule, lpType, lpName, wLang), TRUE);
+            _Analysis_assume_(hResInfo != NULL);
+            HGLOBAL hRes;
+            CHECK_RET(hRes = LoadResource(hModule, hResInfo), TRUE);
+
+            const GRPICONDIR* lpGrpIconDir = (GRPICONDIR*) LockResource(hRes);
+            for (size_t i = 0; i < lpGrpIconDir->idCount; ++i)
+            {
+                const GRPICONDIRENTRY& DirEntry = lpGrpIconDir->idEntries[i];
+                icon_data.push_back(DirEntry.nID);
+            }
+
+            return TRUE;
+        });
     return icon_data;
 }
 
-static BOOL CALLBACK EnumNamesFindFirstFunc(
-    HMODULE hModule,  // module handle
-    LPCTSTR lpType,   // address of resource type
-    LPTSTR lpName,    // address of resource name
-    LONG_PTR lParam)      // extra parameter, could be used for error checking
-{
-    LPCTSTR* pname = (LPCTSTR*) lParam;
-    *pname = lpName;
-    return FALSE;
-}
-
-LPCTSTR FindFirstResourceName(HMODULE hModule, LPCWSTR lpType)
+LPCTSTR FindFirstResourceName(HMODULE hModule, LPCTSTR lpType)
 {
     LPCTSTR name = nullptr;
-    EnumResourceNames(hModule, lpType, EnumNamesFindFirstFunc, (LPARAM) &name);
+    EnumResourceNames(hModule, lpType,
+        [&name](HMODULE hModule, LPCTSTR lpType, LPCTSTR lpName)->BOOL
+        {
+            name = lpName;
+            return FALSE;
+        });
     return name;
 }
 
-static BOOL CALLBACK EnumLangsCopyResourceFunc(
-    HMODULE hModule, // module handle
-    LPCTSTR lpType,  // address of resource type
-    LPCTSTR lpName,  // address of resource name
-    WORD wLang,      // resource language
-    LONG_PTR lParam)     // extra parameter, could be used for error checking
+BOOL CopyResource(HMODULE hModule, LPCTSTR lpType, LPCTSTR lpName, HANDLE hUpdate)
 {
-    HANDLE hUpdate = (HANDLE) lParam;
+    return EnumResourceLanguages(hModule, lpType, lpName,
+        [hUpdate](HMODULE hModule, LPCTSTR lpType, LPCTSTR lpName, WORD wLang) -> BOOL
+        {
+            HRSRC hResInfo;
+            CHECK_RET(hResInfo = FindResourceEx(hModule, lpType, lpName, wLang), TRUE);
+            HGLOBAL hRes;
+            CHECK_RET(hRes = LoadResource(hModule, hResInfo), TRUE);
 
-    HRSRC hResInfo;
-    CHECK_RET(hResInfo = FindResourceEx(hModule, lpType, lpName, wLang), TRUE);
-    HGLOBAL hRes;
-    CHECK_RET(hRes = LoadResource(hModule, hResInfo), TRUE);
+            const DWORD sz = SizeofResource(hModule, hResInfo);
+            LPVOID pData = LockResource(hRes);
 
-    const DWORD sz = SizeofResource(hModule, hResInfo);
-    LPVOID pData = LockResource(hRes);
-
-    return UpdateResource(hUpdate, lpType, lpName, wLang, pData, sz);
+            return UpdateResource(hUpdate, lpType, lpName, wLang, pData, sz);
+        });
 }
 
-BOOL CopyResource(HMODULE hModule, LPCWSTR lpType, LPCWSTR lpName, HANDLE hUpdate)
+BOOL CALLBACK EnumResourceNamesHelper(HMODULE hModule, LPCTSTR lpType, LPTSTR lpName, LONG_PTR lParam)
 {
-    return EnumResourceLanguages(hModule, lpType, lpName, EnumLangsCopyResourceFunc, (LPARAM) hUpdate);
+    EnumResNamesFunc* pFunc = (EnumResNamesFunc*) lParam;
+    return (*pFunc)(hModule, lpType, lpName);
+}
+
+BOOL CALLBACK EnumResourceLanguagesHelper(HMODULE hModule, LPCTSTR lpType, LPCTSTR lpName, WORD wLang, LONG_PTR lParam)
+{
+    EnumResLangFunc* pFunc = (EnumResLangFunc*) lParam;
+    return (*pFunc)(hModule, lpType, lpName, wLang);
 }
