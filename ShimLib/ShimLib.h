@@ -20,14 +20,13 @@ struct Win32Error
 void ReportError(const Win32Error& e);
 
 template <class T>
-T Check(T value, const TCHAR* const expression)
+const T& Check(const T& value, LPCTSTR expression, LPCTSTR file, int line)
 {
     if (!value)
-        throw Win32Error({ GetLastError(), expression });
+        throw Win32Error({ GetLastError(), expression, file, line });
     return value;
 }
 
 #define CHECK_RET(x, r) if (!(x)) return (r)
-#define CHECK_LE(x) if (!(x)) throw Win32Error({ GetLastError(), TEXT(#x), TEXT(__FILE__), __LINE__ })
-#define CHECK_LE_F(x) Check(x, TEXT(#x))
+#define CHECK_LE(x) Check(x, TEXT(#x), TEXT(__FILE__), __LINE__)
 
