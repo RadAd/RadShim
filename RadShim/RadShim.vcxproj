@@ -45,6 +45,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="arg.c" />
     <ClCompile Include="RadShim.cpp" />
     <ClCompile Include="Resources.cpp" />
   </ItemGroup>
@@ -60,6 +61,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="arg.h" />
     <ClInclude Include="RadShim.rc2" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Resources.h" />

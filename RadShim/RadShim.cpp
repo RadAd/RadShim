@@ -11,6 +11,7 @@
 #include "..\ShimLib\Error.h"
 #include "..\ShimLib\ShimLib.h"
 #include "Resources.h"
+#include "arg.h"
 #include "resource.h"
 
 inline HANDLE FixHandle(HANDLE h)
@@ -96,10 +97,16 @@ void CopyResources(LPCTSTR file, LPCTSTR target)
 int _tmain(const int argc, const TCHAR* const argv[])
 try
 {
-    LPCTSTR command = argv[1];
+    arginit(argc, argv, _T("Shim management"));
+    LPCTSTR command = argnext(nullptr, TEXT("command"), _T("Command to execute"));
     if (lstrcmpi(command, _T("create")) == 0)
     {
-        LPCTSTR target = argv[2];
+        LPCTSTR target = argnext(nullptr, TEXT("target"), _T("Shim target executable"));
+        if (!argcleanup())
+            return EXIT_FAILURE;
+        if (argusage())
+            return EXIT_SUCCESS;
+
         if (PathIsRelative(target))
         {
             Error(_T("Target cannot be relative: %s"), target);
@@ -129,7 +136,12 @@ try
     }
     else if (lstrcmpi(command, _T("details")) == 0)
     {
-        LPCTSTR shimname = argv[2];
+        LPCTSTR shimname = argnext(nullptr, TEXT("shim"), _T("Name of shim"));
+        if (!argcleanup())
+            return EXIT_FAILURE;
+        if (argusage())
+            return EXIT_SUCCESS;
+
         TCHAR shim[MAX_PATH];
         CHECK_LE(GetFullPathName(shimname, ARRAYSIZE(shim), shim, nullptr));
 
@@ -159,8 +171,16 @@ try
     }
     else
     {
-        _tprintf(_T("RadShim\n"));
-        Error(_T("Unknown command: %s"), command);
+        if (!argcleanup(true))
+            return EXIT_FAILURE;
+        if (argusage(true))
+        {
+            _ftprintf(stderr, TEXT("\n"));
+            _ftprintf(stderr, TEXT("Where command is one of:\n"));
+            _ftprintf(stderr, TEXT("  create  - create a new shim\n"));
+            _ftprintf(stderr, TEXT("  details - show the details of a shim\n"));
+            return EXIT_SUCCESS;
+        }
         return EXIT_FAILURE;
     }
 
