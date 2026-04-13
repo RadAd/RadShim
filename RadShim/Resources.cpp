@@ -2,34 +2,22 @@
 #include <Windows.h>
 #include "Resources.h"
 
-//#include <fstream>
-#include <memory>
-#include <vector>
-#include <shlwapi.h>
 #include "..\ShimLib\ShimLib.h"
-
-inline HANDLE FixHandle(HANDLE h)
-{
-    return (h == INVALID_HANDLE_VALUE) ? NULL : h;
-}
 
 void UpdateResourceDeleter::operator()(_Notnull_ HANDLE hUpdate) const
 {
     CHECK_LE(EndUpdateResource(hUpdate, discard));
 }
 
-StringTable LoadStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage)
+StringTable LoadStringTable(HMODULE hModule, LPCTSTR lpName, WORD wLanguage)
 {
-    _ASSERTE(!PathIsRelative(file));
-    UniqueModule hModule(InitUniqueModule());
-    CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
     HRSRC hResInfo;
-    CHECK_LE(hResInfo = FindResourceEx(hModule.get(), RT_STRING, lpName, wLanguage));
+    CHECK_LE(hResInfo = FindResourceEx(hModule, RT_STRING, lpName, wLanguage));
     _Analysis_assume_(hResInfo != NULL);
     HGLOBAL hRes;
-    CHECK_LE(hRes = LoadResource(hModule.get(), hResInfo));
+    CHECK_LE(hRes = LoadResource(hModule, hResInfo));
     _Analysis_assume_(hRes != NULL);
-    const DWORD sz = SizeofResource(hModule.get(), hResInfo);
+    const DWORD sz = SizeofResource(hModule, hResInfo);
     StringTable stringtable;
     {
         BYTE* data = (BYTE*) LockResource(hRes);
@@ -64,7 +52,7 @@ static void pack(std::vector<BYTE>& data, LPCTSTR str, WORD nLength)
     }
 }
 
-void SaveStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage, const StringTable& stringtable)
+void SaveStringTable(HANDLE hUpdate, LPCTSTR lpName, WORD wLanguage, const StringTable& stringtable)
 {
     std::vector<BYTE> data;
     for (UINT i = 0; i < STRINGTABLE_SIZE; ++i)
@@ -73,13 +61,10 @@ void SaveStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage, const StringT
         pack(data, nLength);
         pack(data, stringtable.item[i].data(), nLength);
     }
-    UniqueUpdateResource hUpdate;
-    CHECK_LE(hUpdate = UniqueUpdateResource(BeginUpdateResource(file, FALSE)));
-    CHECK_LE(UpdateResource(hUpdate.get(), RT_STRING, lpName, wLanguage, data.data(), (DWORD) data.size() * sizeof(BYTE)));
-    hUpdate.get_deleter().discard = FALSE;
+    CHECK_LE(UpdateResource(hUpdate, RT_STRING, lpName, wLanguage, data.data(), (DWORD) data.size() * sizeof(BYTE)));
 }
 
-void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR output)
+ResData GetResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType)
 {
     HRSRC hResInfo;
     CHECK_LE(hResInfo = FindResource(hModule, lpName, lpType));
@@ -87,23 +72,7 @@ void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR ou
     HGLOBAL hRes;
     CHECK_LE(hRes = LoadResource(hModule, hResInfo));
     _Analysis_assume_(hRes != NULL);
-    const DWORD sz = SizeofResource(hModule, hResInfo);
-    const char* data = (const char*) LockResource(hRes);
-#if 0
-    std::ofstream f;
-    f.exceptions(std::ios_base::failbit | std::ios_base::badbit);
-    f.open(output, std::ios::out | std::ios::binary);
-    f.write(data, sz);
-    f.close();
-#else
-    HANDLE hFile = NULL;
-    CHECK_LE(hFile = FixHandle(CreateFile(output, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)));
-    _Analysis_assume_(hFile != NULL);
-    DWORD bytesWritten = 0;
-    CHECK_LE(WriteFile(hFile, data, sz, &bytesWritten, NULL));
-    _ASSERTE(bytesWritten == sz);
-    CHECK_LE(CloseHandle(hFile));
-#endif
+    return { LockResource(hRes), SizeofResource(hModule, hResInfo) };
 }
 
 // https://docs.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)

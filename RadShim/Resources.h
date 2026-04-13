@@ -7,13 +7,6 @@
 
 #define STRINGTABLE_SIZE 16
 
-typedef std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> UniqueModule;
-
-inline UniqueModule InitUniqueModule(HMODULE hModule = NULL)
-{
-    return UniqueModule(hModule, FreeLibrary);
-}
-
 struct UpdateResourceDeleter
 {
     using pointer = HANDLE;
@@ -28,10 +21,15 @@ struct StringTable
     std::wstring item[STRINGTABLE_SIZE];
 };
 
-StringTable LoadStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage);
-void SaveStringTable(LPCTSTR file, LPCTSTR lpName, WORD wLanguage, const StringTable& stringtable);
+StringTable LoadStringTable(HMODULE hModule, LPCTSTR lpName, WORD wLanguage);
+void SaveStringTable(HANDLE hUpdate, LPCTSTR lpName, WORD wLanguage, const StringTable& stringtable);
 
-void ExtractResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType, LPCTSTR output);
+struct ResData
+{
+    LPVOID data;
+    DWORD size;
+};
+ResData GetResource(HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType);
 
 std::vector<WORD> GetIconResourceIDs(HMODULE hModule, LPCTSTR lpName);
 

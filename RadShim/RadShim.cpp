@@ -12,6 +12,57 @@
 #include "Resources.h"
 #include "resource.h"
 
+inline HANDLE FixHandle(HANDLE h)
+{
+    return (h == INVALID_HANDLE_VALUE) ? NULL : h;
+}
+
+typedef std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> UniqueModule;
+
+inline UniqueModule InitUniqueModule(HMODULE hModule = NULL)
+{
+    return UniqueModule(hModule, FreeLibrary);
+}
+
+void CopyShim(LPCTSTR file, const bool isConsole)
+{
+    TCHAR shim[MAX_PATH];
+    GetModuleFileName(NULL, shim, ARRAYSIZE(shim));
+    LPTSTR shimname = PathFindFileName(shim);
+    lstrcpy(shimname, isConsole ? TEXT("CShim.exe") : TEXT("WShim.exe"));
+    CHECK_LE(CopyFile(shim, file, FALSE));
+}
+
+void ExtractShim(LPCTSTR file, const bool isConsole)
+{
+    ResData resdata = GetResource(NULL, MAKEINTRESOURCE(isConsole ? IDR_CSHIM_EXE : IDR_WSHIM_EXE), RT_RCDATA);
+    HANDLE hFile = NULL;
+    CHECK_LE(hFile = FixHandle(CreateFile(file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)));
+    _Analysis_assume_(hFile != NULL);
+    DWORD bytesWritten = 0;
+    CHECK_LE(WriteFile(hFile, resdata.data, resdata.size, &bytesWritten, NULL));
+    _ASSERTE(bytesWritten == resdata.size);
+    CHECK_LE(CloseHandle(hFile));
+}
+
+void UpdateShimStringTable(LPCTSTR file, LPCTSTR target)
+{
+    _ASSERTE(!PathIsRelative(file));
+    LPCTSTR lpName = MAKEINTRESOURCE(IDS_TARGET / STRINGTABLE_SIZE + 1);
+    const WORD wLanguage = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
+    UniqueModule hModule(InitUniqueModule());
+    CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
+    StringTable stringtable = LoadStringTable(hModule.get(), lpName, wLanguage);
+    hModule.reset();
+
+    stringtable.item[IDS_TARGET % STRINGTABLE_SIZE] = target;
+
+    UniqueUpdateResource hUpdate;
+    CHECK_LE(hUpdate = UniqueUpdateResource(BeginUpdateResource(file, FALSE)));
+    SaveStringTable(hUpdate.get(), lpName, wLanguage, stringtable);
+    hUpdate.get_deleter().discard = FALSE;
+}
+
 void CopyResources(LPCTSTR file, LPCTSTR target)
 {
     _ASSERTE(!PathIsRelative(target));
@@ -61,22 +112,10 @@ try
         TCHAR file[MAX_PATH];
         CHECK_LE(GetFullPathName(filename, ARRAYSIZE(file), file, nullptr));
 
-#if 0
-        TCHAR shim[MAX_PATH];
-        GetModuleFileName(NULL, shim, ARRAYSIZE(shim));
-        LPTSTR shimname = PathFindFileName(shim);
-        lstrcpy(shimname, isConsole ? TEXT("CShim.exe") : TEXT("WShim.exe"));
-        CHECK_LE(CopyFile(shim, file, FALSE));
-#else
-        ExtractResource(NULL, MAKEINTRESOURCE(isConsole ? IDR_CSHIM_EXE : IDR_WSHIM_EXE), RT_RCDATA, file);
-#endif
+        //CopyShim(file, isConsole);
+        ExtractShim(file, isConsole);
 
-        LPCWSTR lpName = MAKEINTRESOURCE(IDS_TARGET / STRINGTABLE_SIZE + 1);
-        const WORD wLanguage = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
-        StringTable stringtable = LoadStringTable(file, lpName, wLanguage);
-        stringtable.item[IDS_TARGET % STRINGTABLE_SIZE] = target;
-        SaveStringTable(file, lpName, wLanguage, stringtable);
-
+        UpdateShimStringTable(file, target);
         CopyResources(file, target);
 
         _tprintf(_T("RadShim: %s ==> %s\n"), file, target);
