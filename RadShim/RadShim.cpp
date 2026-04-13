@@ -18,6 +18,13 @@ inline HANDLE FixHandle(HANDLE h)
     return (h == INVALID_HANDLE_VALUE) ? NULL : h;
 }
 
+typedef std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(&CloseHandle)> UniqueHandle;
+
+inline UniqueHandle InitUniqueHandle(HANDLE hHandle = NULL)
+{
+    return UniqueHandle(FixHandle(hHandle), CloseHandle);
+}
+
 typedef std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> UniqueModule;
 
 inline UniqueModule InitUniqueModule(HMODULE hModule = NULL)
@@ -37,13 +44,12 @@ void CopyShim(LPCTSTR file, const bool isConsole)
 void ExtractShim(LPCTSTR file, const bool isConsole)
 {
     ResData resdata = GetResource(NULL, MAKEINTRESOURCE(isConsole ? IDR_CSHIM_EXE : IDR_WSHIM_EXE), RT_RCDATA);
-    HANDLE hFile = NULL;
-    CHECK_LE(hFile = FixHandle(CreateFile(file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)));
+    UniqueHandle hFile = InitUniqueHandle();
+    CHECK_LE(hFile = InitUniqueHandle(CreateFile(file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)));
     _Analysis_assume_(hFile != NULL);
     DWORD bytesWritten = 0;
-    CHECK_LE(WriteFile(hFile, resdata.data, resdata.size, &bytesWritten, NULL));
+    CHECK_LE(WriteFile(hFile.get(), resdata.data, resdata.size, &bytesWritten, NULL));
     _ASSERTE(bytesWritten == resdata.size);
-    CHECK_LE(CloseHandle(hFile));
 }
 
 void UpdateShimStringTable(LPCTSTR file, LPCTSTR target)
