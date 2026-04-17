@@ -81,7 +81,7 @@ void CopyResources(LPCTSTR file, LPCTSTR target)
 {
     _ASSERTE(!PathIsRelative(target));
     UniqueModule hModule(InitUniqueModule());
-    CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(target, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
+    CHECK_LE_CTX(hModule = InitUniqueModule(LoadLibraryEx(target, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)), target);
     LPCTSTR group_icon_name = FindFirstResourceName(hModule.get(), RT_GROUP_ICON);
     LPCTSTR version_name = FindFirstResourceName(hModule.get(), RT_VERSION);
 
