@@ -14,6 +14,8 @@
 #include "arg.h"
 #include "resource.h"
 
+#define COLOR(n) TEXT("\x1B[" #n "m")
+
 inline HANDLE FixHandle(HANDLE h)
 {
     return (h == INVALID_HANDLE_VALUE) ? NULL : h;
@@ -148,7 +150,7 @@ try
         UpdateShimStringTable(file, target);
         CopyResources(file, target);
 
-        _tprintf(_T("RadShim: %s ==> %s\n"), file, target);
+        _tprintf(_T("RadShim: ") COLOR(34) _T("%s") COLOR(0) _T(" ==> ") COLOR(33) _T("%s") COLOR(0) _T("\n"), file, target);
     }
     else if (lstrcmpi(command, _T("details")) == 0)
     {
@@ -228,6 +230,5 @@ void Error(const TCHAR* const format, ...)
     TCHAR buffer[1024];
     _vsntprintf_s(buffer, sizeof(buffer) / sizeof(TCHAR), format, args);
     va_end(args);
-    _fputts(buffer, stderr);
-    _fputts(TEXT("\n"), stderr);
+    _ftprintf(stderr, COLOR(31) TEXT("") COLOR(0) TEXT(" %s\n"), buffer);
 }
