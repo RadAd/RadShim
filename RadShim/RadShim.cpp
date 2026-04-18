@@ -14,7 +14,7 @@
 #include "arg.h"
 #include "resource.h"
 
-#define COLOR(n) TEXT("\x1B[" #n "m")
+#define COLOR(n) "\x1B[" #n "m"
 
 inline HANDLE FixHandle(HANDLE h)
 {
@@ -150,7 +150,7 @@ try
         UpdateShimStringTable(file, target);
         CopyResources(file, target);
 
-        _tprintf(_T("RadShim: ") COLOR(34) _T("%s") COLOR(0) _T(" ==> ") COLOR(33) _T("%s") COLOR(0) _T("\n"), file, target);
+        _tprintf(_T("RadShim: " COLOR(34) "%s" COLOR(0) " ==> " COLOR(33) "%s" COLOR(0) "\n"), file, target);
     }
     else if (lstrcmpi(command, _T("details")) == 0)
     {
@@ -174,7 +174,7 @@ try
         }
         CHECK_LE(PathCombine(shim, shim, shimname));
 
-        _tprintf(_T("Shim: %s\n"), shim);
+        _tprintf(_T(COLOR(37) "Shim:" COLOR(0) " %s\n"), shim);
 
         UniqueModule hModule(InitUniqueModule());
         CHECK_LE_CTX(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)), shim);
@@ -191,8 +191,8 @@ try
         TCHAR target[MAX_PATH];
         CHECK_LE(LoadString(hModule.get(), IDS_TARGET, target, ARRAYSIZE(target)));
 
-        _tprintf(_T("Version: %s\n"), version);
-        _tprintf(_T("Target: %s\n"), target);
+        _tprintf(_T(COLOR(37) "Version:" COLOR(0) " %s\n"), version);
+        _tprintf(_T(COLOR(37) "Target:" COLOR(0) " %s\n"), target);
 
         if (!PathFileExists(target))
         {
@@ -230,5 +230,5 @@ void Error(const TCHAR* const format, ...)
     TCHAR buffer[1024];
     _vsntprintf_s(buffer, sizeof(buffer) / sizeof(TCHAR), format, args);
     va_end(args);
-    _ftprintf(stderr, COLOR(31) TEXT("Error:") COLOR(0) TEXT(" %s\n"), buffer);
+    _ftprintf(stderr, TEXT(COLOR(31) "Error:" COLOR(0) " %s\n"), buffer);
 }
