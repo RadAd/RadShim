@@ -47,7 +47,7 @@ void CopyShim(LPCTSTR file, const bool isConsole)
     GetModuleFileName(NULL, shim, ARRAYSIZE(shim));
     LPTSTR shimname = PathFindFileName(shim);
     lstrcpy(shimname, isConsole ? TEXT("CShim.exe") : TEXT("WShim.exe"));
-    CHECK_LE(CopyFile(shim, file, FALSE));
+    CHECK_LE_CTX(CopyFile(shim, file, FALSE), shim);
 }
 
 void ExtractShim(LPCTSTR file, const bool isConsole)
@@ -67,14 +67,14 @@ void UpdateShimStringTable(LPCTSTR file, LPCTSTR target)
     LPCTSTR lpName = MAKEINTRESOURCE(IDS_TARGET / STRINGTABLE_SIZE + 1);
     const WORD wLanguage = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
     UniqueModule hModule(InitUniqueModule());
-    CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
+    CHECK_LE_CTX(hModule = InitUniqueModule(LoadLibraryEx(file, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)), file);
     StringTable stringtable = LoadStringTable(hModule.get(), lpName, wLanguage);
     hModule.reset();
 
     stringtable.item[IDS_TARGET % STRINGTABLE_SIZE] = target;
 
     UniqueUpdateResource hUpdate;
-    CHECK_LE(hUpdate = UniqueUpdateResource(BeginUpdateResource(file, FALSE)));
+    CHECK_LE_CTX(hUpdate = UniqueUpdateResource(BeginUpdateResource(file, FALSE)), file);
     SaveStringTable(hUpdate.get(), lpName, wLanguage, stringtable);
     hUpdate.get_deleter().discard = FALSE;
 }
@@ -132,7 +132,7 @@ try
         }
 
         DWORD_PTR exe_type;
-        CHECK_LE(exe_type = SHGetFileInfo(target, 0, nullptr, 0, SHGFI_EXETYPE));
+        CHECK_LE_CTX(exe_type = SHGetFileInfo(target, 0, nullptr, 0, SHGFI_EXETYPE), target);
         const bool isConsole = HIWORD(exe_type) == 0;
 
         TCHAR file[MAX_PATH];
@@ -177,7 +177,7 @@ try
         _tprintf(_T("Shim: %s\n"), shim);
 
         UniqueModule hModule(InitUniqueModule());
-        CHECK_LE(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)));
+        CHECK_LE_CTX(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)), shim);
 
         TCHAR verify[256];
         if (!LoadString(hModule.get(), IDS_SHIM, verify, ARRAYSIZE(verify)) || lstrcmpi(verify, _T("RadShim")) != 0)
@@ -230,5 +230,5 @@ void Error(const TCHAR* const format, ...)
     TCHAR buffer[1024];
     _vsntprintf_s(buffer, sizeof(buffer) / sizeof(TCHAR), format, args);
     va_end(args);
-    _ftprintf(stderr, COLOR(31) TEXT("") COLOR(0) TEXT(" %s\n"), buffer);
+    _ftprintf(stderr, COLOR(31) TEXT("Error:") COLOR(0) TEXT(" %s\n"), buffer);
 }
