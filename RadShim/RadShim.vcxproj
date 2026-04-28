@@ -43,8 +43,12 @@
     <ResourceCompile>
       <PreprocessorDefinitions>PATH_CSHIM_EXE="$(OutputPath)CShim.exe";PATH_WSHIM_EXE="$(OutputPath)WShim.exe";%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
+    <ClCompile>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Release|x64'">stdcpp17</LanguageStandard>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AnsiPrint.cpp" />
     <ClCompile Include="arg.c" />
     <ClCompile Include="RadShim.cpp" />
     <ClCompile Include="Resources.cpp" />
@@ -61,6 +65,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AnsiPrint.h" />
     <ClInclude Include="arg.h" />
     <ClInclude Include="RadShim.rc2" />
     <ClInclude Include="resource.h" />

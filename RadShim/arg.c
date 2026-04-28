@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <tchar.h>
 #include "arg.h"
+#include "AnsiPrint.h"
 
 bool* g_argb = NULL;
 int g_argc = 0;
@@ -45,6 +46,7 @@ void arginit(int argc, const TCHAR* const argv[], const TCHAR* argdescription AR
     g_argc = argc;
     g_argv = argv;
     g_argb = (bool*) malloc(argc * sizeof(bool));
+    //assert(g_argb != NULL);
     for (int argi = 1; argi < g_argc; ++argi)
     {
         g_argb[argi] = false;
@@ -66,7 +68,7 @@ bool argcleanup(bool bforceusage ARG_OPTIONAL(FALSE))
     int msgoffset = 0;
 #define msg(...) msgoffset += _stprintf_s(msg + msgoffset, ARRAYSIZE(msg) - msgoffset, __VA_ARGS__)
 #else
-#define msg(...) _ftprintf(stderr, __VA_ARGS__)
+#define msg(...) AnsiFTPrintf(stderr, __VA_ARGS__)
 #endif
 
     g_argshowUsage = argswitch(_T("/?"), _T("Show usage")) || bforceusage;
@@ -121,7 +123,7 @@ bool argusage(bool bforce ARG_OPTIONAL(false))
     int msgoffset = 0;
 #define msg(...) msgoffset += _stprintf_s(msg + msgoffset, ARRAYSIZE(msg) - msgoffset, __VA_ARGS__)
 #else
-#define msg(...) _ftprintf(stdout, __VA_ARGS__)
+#define msg(...) AnsiFTPrintf(stdout, __VA_ARGS__)
 #endif
 
     if (!bforce && !g_argshowUsage)
@@ -157,13 +159,13 @@ bool argusage(bool bforce ARG_OPTIONAL(false))
         {
             const ArgArgDescription* argargdescription = &g_argargdescription[i];
             if (argargdescription->desc != NULL)
-                msg(_T("   " ARG_OPTION("%s") "\t%s\n"), argargdescription->arg, argargdescription->desc);
+                msg(_T("   " ARG_OPTION("%-10s") "\t%s\n"), argargdescription->arg, argargdescription->desc);
         }
         for (i = 0; i < g_argargnumdescriptioncount; ++i)
         {
             const ArgArgNumDescription* argargnumdescription = &g_argargnumdescription[i];
             if (argargnumdescription->desc != NULL)
-                msg(_T("   " ARG_OPTION("%s") "\t%s\n"), argargnumdescription->arg, argargnumdescription->desc);
+                msg(_T("   " ARG_OPTION("%-10s") "\t%s\n"), argargnumdescription->arg, argargnumdescription->desc);
         }
     }
 #ifdef _WINDOWS

@@ -6,10 +6,12 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <io.h>
 #include <vector>
 
 #include "..\ShimLib\Error.h"
 #include "..\ShimLib\ShimLib.h"
+#include "AnsiPrint.h"
 #include "Resources.h"
 #include "arg.h"
 #include "resource.h"
@@ -102,10 +104,23 @@ void CopyResources(LPCTSTR file, LPCTSTR target)
     hUpdate.get_deleter().discard = FALSE;
 }
 
+bool AnsiColor(LPCTSTR color)
+{
+    if (lstrcmpi(color, _T("true")) == 0)
+        return true;
+    else if (lstrcmpi(color, _T("false")) == 0)
+        return false;
+    else if (lstrcmpi(color, _T("auto")) == 0)
+        return _isatty(_fileno(stdout));
+    else
+        return true;
+}
+
 int _tmain(const int argc, const TCHAR* const argv[])
 try
 {
     arginit(argc, argv, _T("Shim management"));
+    g_Ansi = AnsiColor(argvalue(TEXT("/Color"), TEXT("auto"), TEXT("true|false|auto"), TEXT("Use ansi color output")));
     LPCTSTR command = argnext(nullptr, TEXT("command"), _T("Command to execute"));
     if (lstrcmpi(command, _T("create")) == 0)
     {
@@ -114,9 +129,9 @@ try
             return EXIT_FAILURE;
         if (argusage())
         {
-            _ftprintf(stderr, TEXT("\n"));
-            _ftprintf(stderr, TEXT("If RADSHIMDIR is defined then shim is created in that directory\n"));
-            _ftprintf(stderr, TEXT("otherwise shim is created in %%LOCALAPPDATA%%\\RadShim\n"));
+            _tprintf(TEXT("\n"));
+            _tprintf(TEXT("If RADSHIMDIR is defined then shim is created in that directory\n"));
+            _tprintf(TEXT("otherwise shim is created in %%LOCALAPPDATA%%\\RadShim\n"));
             return EXIT_SUCCESS;
         }
 
@@ -150,7 +165,7 @@ try
         UpdateShimStringTable(file, target);
         CopyResources(file, target);
 
-        _tprintf(_T("RadShim: " COLOR(34) "%s" COLOR(0) " ==> " COLOR(33) "%s" COLOR(0) "\n"), file, target);
+        AnsiTPrintf(_T("RadShim: " COLOR(34) "%s" COLOR(0) " ==> " COLOR(33) "%s" COLOR(0) "\n"), file, target);
     }
     else if (lstrcmpi(command, _T("details")) == 0)
     {
@@ -174,7 +189,7 @@ try
         }
         CHECK_LE(PathCombine(shim, shim, shimname));
 
-        _tprintf(_T(COLOR(37) "Shim:" COLOR(0) " %s\n"), shim);
+        AnsiTPrintf(_T(COLOR(37) "Shim:" COLOR(0) " %s\n"), shim);
 
         UniqueModule hModule(InitUniqueModule());
         CHECK_LE_CTX(hModule = InitUniqueModule(LoadLibraryEx(shim, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE)), shim);
@@ -191,14 +206,16 @@ try
         TCHAR target[MAX_PATH];
         CHECK_LE(LoadString(hModule.get(), IDS_TARGET, target, ARRAYSIZE(target)));
 
-        _tprintf(_T(COLOR(37) "Version:" COLOR(0) " %s\n"), version);
-        _tprintf(_T(COLOR(37) "Target:" COLOR(0) " %s\n"), target);
+        AnsiTPrintf(_T(COLOR(37) "Version:" COLOR(0) " %s\n"), version);
 
         if (!PathFileExists(target))
         {
+            AnsiTPrintf(_T(COLOR(37) "Target:" COLOR(31) " %s" COLOR(0) "\n"), target);
             Error(_T("Target file does not exist: %s"), target);
             return EXIT_FAILURE;
         }
+        else
+            AnsiTPrintf(_T(COLOR(37) "Target:" COLOR(34) " %s" COLOR(0) "\n"), target);
     }
     else
     {
@@ -206,10 +223,10 @@ try
             return EXIT_FAILURE;
         if (argusage(true))
         {
-            _ftprintf(stderr, TEXT("\n"));
-            _ftprintf(stderr, TEXT("Where command is one of:\n"));
-            _ftprintf(stderr, TEXT("  create  - create a new shim\n"));
-            _ftprintf(stderr, TEXT("  details - show the details of a shim\n"));
+            _tprintf(TEXT("\n"));
+            AnsiTPrintf(TEXT("Where " COLOR(33) "command" COLOR(0) " is one of:\n"));
+            AnsiTPrintf(TEXT("  " COLOR(36) "create" COLOR(0) "  - create a new shim\n"));
+            AnsiTPrintf(TEXT("  " COLOR(36) "details" COLOR(0) " - show the details of a shim\n"));
             return EXIT_SUCCESS;
         }
         return EXIT_FAILURE;
@@ -230,5 +247,5 @@ void Error(const TCHAR* const format, ...)
     TCHAR buffer[1024];
     _vsntprintf_s(buffer, sizeof(buffer) / sizeof(TCHAR), format, args);
     va_end(args);
-    _ftprintf(stderr, TEXT(COLOR(31) "Error:" COLOR(0) " %s\n"), buffer);
+    AnsiFTPrintf(stderr, TEXT(COLOR(31) "Error:" COLOR(0) " %s\n"), buffer);
 }
