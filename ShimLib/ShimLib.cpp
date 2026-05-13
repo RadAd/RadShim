@@ -42,11 +42,11 @@ try
     WaitForSingleObject(pi.hProcess, INFINITE);
 
     DWORD exit_code = 0;
-    ::GetExitCodeProcess(pi.hProcess, &exit_code);
+    CHECK_LE(::GetExitCodeProcess(pi.hProcess, &exit_code));
 
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
-    CloseHandle(hJob);
+    //CloseHandle(hJob); Closing the job handle will kill this process, so we don't do that.
 
     return exit_code;
 }
