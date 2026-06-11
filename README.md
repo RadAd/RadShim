@@ -1,4 +1,8 @@
-## RadShim
+# RadShim
+![Console](https://img.shields.io/badge/platform-Console-blue.svg)
+[![Releases](https://img.shields.io/github/release/RadAd/RadShim.svg)](https://github.com/RadAd/RadShim/releases/latest)
+[![commits-since](https://img.shields.io/github/commits-since/RadAd/RadShim/latest.svg)](commits/master)
+[![Build](https://img.shields.io/appveyor/ci/RadAd/RadShim.svg)](https://ci.appveyor.com/project/RadAd/RadShim)
 
 A **shim** is a small executable that acts as a proxy for another program. It contains a reference to a target executable and ensures that when the shim is invoked, the target program is executed transparently.
 
